@@ -13,6 +13,52 @@ NotionMediaUploaderは、LINEで受け取った画像を自動的にNotionデー
 
 本システムは以下の6段階のプロセスで画像の転送・保存を行います：
 
+### シーケンス図
+
+```mermaid
+sequenceDiagram
+    participant U as LINEユーザー
+    participant L as LINE Platform
+    participant G as Google Apps Script
+    participant LA as LINE API
+    participant N as Notion API
+
+    U->>L: 画像メッセージ送信
+    L->>G: Webhook送信 (doPost)
+    
+    Note over G: 1. Webhook受信・検証
+    G->>G: リクエスト検証・画像メッセージ判定
+    
+    Note over G: 2. 画像メッセージ処理・初期化  
+    G->>G: メッセージID・ユーザーID抽出
+    
+    Note over G: 3. LINE APIからの画像取得
+    G->>LA: GET /v2/bot/message/{messageId}/content
+    LA-->>G: 画像バイナリデータ (Blob)
+    
+    Note over G: 4. ユーザープロファイル情報取得
+    G->>LA: GET /v2/bot/profile/{userId}
+    LA-->>G: ユーザー表示名
+    
+    Note over G: 5. Notion File Upload (3段階)
+    
+    Note over G: 5-1. File Uploadオブジェクト作成
+    G->>N: POST /v1/file_uploads
+    N-->>G: File Upload ID
+    
+    Note over G: 5-2. ファイルコンテンツ送信
+    G->>N: POST /v1/file_uploads/{id}/send
+    N-->>G: アップロード完了確認
+    
+    Note over G: 5-3. データベースエントリ作成
+    G->>N: POST /v1/pages
+    N-->>G: ページ作成確認
+    
+    Note over G: 6. ユーザーフィードバック送信
+    G->>LA: POST /v2/bot/message/reply
+    LA->>U: 保存完了メッセージ
+```
+
 ### 1. LINE Webhook受信・検証
 - **関数**: `doPost(e)`
 - **処理内容**: 
